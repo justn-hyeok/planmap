@@ -1,0 +1,1 @@
+export const useFlowStore = () => "Zustand store for flow state"

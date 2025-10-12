@@ -1,0 +1,1 @@
+export const useMindmaps = () => "React Query hooks for mindmaps"

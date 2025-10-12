@@ -1,0 +1,1 @@
+export const createServerSupabaseClient = () => "Server Supabase Client"
