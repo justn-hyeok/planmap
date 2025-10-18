@@ -1,20 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { mockMindmaps } from '@/lib/mock-data'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function GET() {
-  return NextResponse.json(mockMindmaps)
+  try {
+    const supabase = await createServerSupabaseClient()
+
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get mindmaps for current user
+    const { data: mindmaps, error } = await supabase
+      .from('mindmaps')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(mindmaps)
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
+  try {
+    const supabase = await createServerSupabaseClient()
 
-  const newMindmap = {
-    id: `mindmap-${Date.now()}`,
-    title: body.title || '새 마인드맵',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    user_id: 'user-1'
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { title, description } = body
+
+    // Create new mindmap
+    const { data: mindmap, error } = await supabase
+      .from('mindmaps')
+      .insert({
+        title: title || '새 마인드맵',
+        description: description || null,
+        user_id: user.id,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(mindmap, { status: 201 })
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-
-  return NextResponse.json(newMindmap, { status: 201 })
 }
