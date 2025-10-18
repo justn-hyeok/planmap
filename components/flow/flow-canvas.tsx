@@ -149,6 +149,7 @@ export default function FlowCanvas({
     return () => clearInterval(interval)
   }, [hasUnsavedChanges, savePositions])
 
+
   // 뷰포트 복원
   useEffect(() => {
     const savedViewportData = localStorage.getItem(`mindmap-viewport-${mindmapId}`)
