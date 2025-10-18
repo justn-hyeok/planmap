@@ -17,6 +17,7 @@ function StudyNode({ id, data, selected }: NodeProps<NodeData>) {
   const progressLevel = getProgressLevel(data.progress)
 
   const handleClick = () => {
+    console.log('Node clicked:', id, 'onEdit:', data.onEdit)
     data.onEdit?.(id)
   }
 

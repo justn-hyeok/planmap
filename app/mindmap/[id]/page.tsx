@@ -27,7 +27,9 @@ export default function MindmapPage() {
   const createNode = useCreateNode()
 
   const handleNodeEdit = (nodeId: string) => {
+    console.log('handleNodeEdit called:', nodeId)
     const node = mindmap?.nodes?.find((n) => n.react_flow_id === nodeId)
+    console.log('Found node:', node)
     if (node) {
       setSelectedNode(node)
       setSidebarOpen(true)
@@ -51,6 +53,11 @@ export default function MindmapPage() {
   const closeSidebar = () => {
     setSidebarOpen(false)
     setSelectedNode(null)
+  }
+
+  const handleSave = () => {
+    // 저장 완료 피드백 (필요시)
+    console.log('저장 완료!')
   }
 
   if (isLoading) {
@@ -91,7 +98,7 @@ export default function MindmapPage() {
         </div>
 
         {/* Add Node Button */}
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-56 z-10">
           <Button
             onClick={() => handleAddNode({ x: 100, y: 100 })}
             disabled={createNode.isPending}
@@ -109,6 +116,7 @@ export default function MindmapPage() {
           edges={mindmap.edges || []}
           onNodeEdit={handleNodeEdit}
           onAddNode={handleAddNode}
+          onSave={handleSave}
         />
 
         {/* Node Sidebar */}

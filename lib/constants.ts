@@ -73,9 +73,8 @@ export const STORAGE_KEYS = {
   USER_PREFERENCES: 'planmap_user_preferences',
 } as const
 
-// 디바운스 딜레이 (ms)
-export const DEBOUNCE_DELAY = {
-  AUTO_SAVE: 1000,
-  SEARCH: 300,
-  RESIZE: 100,
+// 저장 관련 설정 (ms)
+export const SAVE_SETTINGS = {
+  AUTO_SAVE_INTERVAL: 5 * 60 * 1000, // 5분마다 자동 저장
+  DEBOUNCE_DELAY: 300, // 검색 등 일반적인 디바운스
 } as const
