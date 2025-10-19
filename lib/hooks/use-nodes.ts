@@ -44,6 +44,8 @@ export function useCreateNode() {
           progress: newNode.progress || 0,
           type: newNode.type || 'default',
           position: newNode.position || { x: 0, y: 0 },
+          style: newNode.style || null,
+          data: newNode.data || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }

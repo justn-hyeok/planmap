@@ -13,7 +13,7 @@ export async function PUT(request: NextRequest) {
     // Bulk update nodes
     const updates = await Promise.all(
       nodes.map(async ({ id, ...updateData }) => {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('nodes')
           .update(updateData)
           .eq('id', id)

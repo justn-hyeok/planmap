@@ -52,6 +52,8 @@ export function useCreateMindmap() {
           id: `temp-${Date.now()}`,
           title: newMindmap.title,
           description: newMindmap.description || null,
+          viewport: newMindmap.viewport || null,
+          settings: newMindmap.settings || null,
           user_id: 'temp-user',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const { title, description } = body
 
     // Create new mindmap
-    const { data: mindmap, error } = await supabase
+    const { data: mindmap, error } = await (supabase as any)
       .from('mindmaps')
       .insert({
         title: title || '새 마인드맵',

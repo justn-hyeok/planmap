@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new node
-    const { data: node, error } = await supabase
+    const { data: node, error } = await (supabase as any)
       .from('nodes')
       .insert({
         mindmap_id,

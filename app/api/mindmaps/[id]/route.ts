@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import type { Database } from '@/types/database'
 
 export async function GET(
   request: NextRequest,
@@ -59,15 +60,15 @@ export async function PUT(
     const { title, description, viewport, settings } = body
 
     // Update mindmap
-    const { data: mindmap, error } = await supabase
+    const updateData: Database['public']['Tables']['mindmaps']['Update'] = {}
+    if (title !== undefined) updateData.title = title
+    if (description !== undefined) updateData.description = description
+    if (viewport !== undefined) updateData.viewport = viewport
+    if (settings !== undefined) updateData.settings = settings
+
+    const { data: mindmap, error } = await (supabase as any)
       .from('mindmaps')
-      .update({
-        title,
-        description,
-        viewport,
-        settings,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
