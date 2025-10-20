@@ -122,6 +122,40 @@ export default function FlowCanvas({
     setEdges(initialEdges)
   }, [initialEdges, setEdges])
 
+  // Debounced position save
+  const debouncedSavePositions = useMemo(
+    () => debounce(() => {
+      const updates = nodes
+        .map((node) => {
+          const dbNode = dbNodes.find((n) => n.react_flow_id === node.id)
+          if (!dbNode) return null
+
+          return {
+            id: dbNode.id,
+            position: node.position,
+          }
+        })
+        .filter(Boolean) as Array<{ id: string; position: { x: number; y: number } }>
+
+      if (updates.length > 0) {
+        updateNodesBulk.mutate(
+          { nodes: updates },
+          {
+            onSuccess: () => {
+              setHasUnsavedChanges(false)
+              // 뷰포트 상태도 저장
+              const currentViewport = getViewport()
+              setSavedViewport(currentViewport)
+              localStorage.setItem(`mindmap-viewport-${mindmapId}`, JSON.stringify(currentViewport))
+              onSave?.()
+            }
+          }
+        )
+      }
+    }, SAVE_SETTINGS.POSITION_DEBOUNCE),
+    [nodes, dbNodes, updateNodesBulk, onSave, getViewport, mindmapId]
+  )
+
   // Manual save function
   const savePositions = useCallback(() => {
     const updates = nodes
@@ -196,7 +230,7 @@ export default function FlowCanvas({
     () => debounce((viewport: Viewport) => {
       localStorage.setItem(`mindmap-viewport-${mindmapId}`, JSON.stringify(viewport))
       setSavedViewport(viewport)
-    }, 2000), // 2초 디바운스
+    }, SAVE_SETTINGS.VIEWPORT_DEBOUNCE),
     [mindmapId]
   )
 
@@ -245,9 +279,11 @@ export default function FlowCanvas({
 
       if (positionChanges.length > 0) {
         setHasUnsavedChanges(true)
+        // Trigger debounced auto-save for positions
+        debouncedSavePositions()
       }
     },
-    [onNodesChange]
+    [onNodesChange, debouncedSavePositions]
   )
 
   // Handle edge connections

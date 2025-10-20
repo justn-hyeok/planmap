@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,8 @@ import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { useUpdateNode, useDeleteNode } from '@/lib/hooks/use-nodes'
-import { getProgressColor, validateProgress } from '@/lib/utils'
+import { getProgressColor, validateProgress, debounce } from '@/lib/utils'
+import { SAVE_SETTINGS } from '@/lib/constants'
 import type { Database } from '@/types/database'
 
 type DatabaseNode = Database['public']['Tables']['nodes']['Row']
@@ -25,9 +26,25 @@ export default function NodeSidebar({ node, isOpen, onClose }: NodeSidebarProps)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [progress, setProgress] = useState(0)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const updateNode = useUpdateNode()
   const deleteNode = useDeleteNode()
+
+  // Debounced auto-save function
+  const debouncedAutoSave = useMemo(
+    () => debounce((nodeId: string, updatedData: any) => {
+      updateNode.mutate({
+        id: nodeId,
+        ...updatedData,
+      }, {
+        onSuccess: () => {
+          setHasUnsavedChanges(false)
+        }
+      })
+    }, SAVE_SETTINGS.CONTENT_DEBOUNCE),
+    [updateNode]
+  )
 
   // Update form when node changes
   useEffect(() => {
@@ -35,8 +52,45 @@ export default function NodeSidebar({ node, isOpen, onClose }: NodeSidebarProps)
       setTitle(node.title)
       setContent(node.content || '')
       setProgress(node.progress)
+      setHasUnsavedChanges(false)
     }
   }, [node])
+
+  // Auto-save when title changes
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setTitle(newTitle)
+    setHasUnsavedChanges(true)
+
+    if (node && newTitle.trim() !== node.title) {
+      debouncedAutoSave(node.id, {
+        title: newTitle.trim() || '새 노드'
+      })
+    }
+  }, [node, debouncedAutoSave])
+
+  // Auto-save when content changes
+  const handleContentChange = useCallback((newContent: string) => {
+    setContent(newContent)
+    setHasUnsavedChanges(true)
+
+    if (node && newContent.trim() !== (node.content || '')) {
+      debouncedAutoSave(node.id, {
+        content: newContent.trim()
+      })
+    }
+  }, [node, debouncedAutoSave])
+
+  // Auto-save when progress changes
+  const handleProgressChange = useCallback((newProgress: number) => {
+    setProgress(newProgress)
+    setHasUnsavedChanges(true)
+
+    if (node && newProgress !== node.progress) {
+      debouncedAutoSave(node.id, {
+        progress: validateProgress(newProgress)
+      })
+    }
+  }, [node, debouncedAutoSave])
 
   const handleSave = async () => {
     if (!node) return
@@ -71,7 +125,26 @@ export default function NodeSidebar({ node, isOpen, onClose }: NodeSidebarProps)
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">노드 편집</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">노드 편집</h2>
+            {/* Auto-save status indicator */}
+            {hasUnsavedChanges ? (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-orange-600">변경됨</span>
+              </div>
+            ) : updateNode.isPending ? (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-blue-600">저장 중</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-xs text-green-600">저장됨</span>
+              </div>
+            )}
+          </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
@@ -84,7 +157,7 @@ export default function NodeSidebar({ node, isOpen, onClose }: NodeSidebarProps)
             <Input
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="노드 제목을 입력하세요"
             />
           </div>
@@ -95,7 +168,7 @@ export default function NodeSidebar({ node, isOpen, onClose }: NodeSidebarProps)
             <Textarea
               id="content"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => handleContentChange(e.target.value)}
               placeholder="학습 내용을 입력하세요"
               rows={6}
             />
@@ -118,7 +191,7 @@ export default function NodeSidebar({ node, isOpen, onClose }: NodeSidebarProps)
 
             <Slider
               value={[progress]}
-              onValueChange={(value) => setProgress(value[0])}
+              onValueChange={(value) => handleProgressChange(value[0])}
               max={100}
               step={1}
               className="w-full"

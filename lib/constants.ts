@@ -75,6 +75,9 @@ export const STORAGE_KEYS = {
 
 // 저장 관련 설정 (ms)
 export const SAVE_SETTINGS = {
-  AUTO_SAVE_INTERVAL: 5 * 60 * 1000, // 5분마다 자동 저장
-  DEBOUNCE_DELAY: 300, // 검색 등 일반적인 디바운스
+  AUTO_SAVE_INTERVAL: 30 * 1000, // 30초마다 자동 저장 (더 자주)
+  POSITION_DEBOUNCE: 1000, // 1초 후 위치 저장
+  CONTENT_DEBOUNCE: 2000, // 2초 후 내용 저장
+  VIEWPORT_DEBOUNCE: 2000, // 2초 후 뷰포트 저장
+  GENERAL_DEBOUNCE: 300, // 검색 등 일반적인 디바운스
 } as const
