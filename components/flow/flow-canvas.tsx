@@ -84,6 +84,30 @@ export default function FlowCanvas({
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 
+  // Handle edge deletion
+  const handleEdgesChange = useCallback(
+    async (changes: EdgeChange[]) => {
+      onEdgesChange(changes)
+
+      // Handle edge deletion
+      const deletions = changes.filter(change => change.type === 'remove')
+      for (const deletion of deletions) {
+        try {
+          const response = await fetch(`/api/edges?react_flow_id=${deletion.id}`, {
+            method: 'DELETE',
+          })
+
+          if (!response.ok) {
+            console.error('Failed to delete edge from database')
+          }
+        } catch (error) {
+          console.error('Error deleting edge:', error)
+        }
+      }
+    },
+    [onEdgesChange]
+  )
+
   // Update nodes when dbNodes change
   useEffect(() => {
     setNodes(initialNodes)
@@ -110,7 +134,7 @@ export default function FlowCanvas({
           position: node.position,
         }
       })
-      .filter(Boolean) as any[]
+      .filter(Boolean) as Array<{ id: string; position: { x: number; y: number } }>
 
     if (updates.length > 0) {
       updateNodesBulk.mutate(
@@ -228,11 +252,34 @@ export default function FlowCanvas({
 
   // Handle edge connections
   const onConnect = useCallback(
-    (params: Connection) => {
+    async (params: Connection) => {
+      const newEdge = addEdge(params, [])
       setEdges((eds) => addEdge(params, eds))
-      // TODO: Save edge to database
+
+      // Save edge to database
+      try {
+        const response = await fetch('/api/edges', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            mindmap_id: mindmapId,
+            react_flow_id: newEdge[0].id,
+            source_node_id: params.source,
+            target_node_id: params.target,
+            type: params.sourceHandle ? 'custom' : 'default',
+          }),
+        })
+
+        if (!response.ok) {
+          console.error('Failed to save edge to database')
+        }
+      } catch (error) {
+        console.error('Error saving edge:', error)
+      }
     },
-    [setEdges]
+    [setEdges, mindmapId]
   )
 
   // Handle canvas click for adding nodes
@@ -273,6 +320,7 @@ export default function FlowCanvas({
           )}
         </div>
         <button
+          type="button"
           onClick={savePositions}
           disabled={!hasUnsavedChanges || updateNodesBulk.isPending}
           className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
@@ -285,7 +333,7 @@ export default function FlowCanvas({
         nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}

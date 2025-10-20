@@ -81,12 +81,12 @@ export function useUpdateNode() {
     onMutate: async ({ id, ...updateData }) => {
       // 노드가 속한 mindmap_id를 찾기 위해 기존 데이터 확인
       const queryCache = queryClient.getQueryCache()
-      const nodesQueries = queryCache.findAll({ queryKey: ['nodes'] })
 
+      // 1. nodes 쿼리에서 찾기
+      const nodesQueries = queryCache.findAll({ queryKey: ['nodes'] })
       let mindmapId: string | null = null
       let previousNodes: Node[] | undefined
 
-      // 해당 노드가 있는 mindmap 찾기
       for (const query of nodesQueries) {
         const nodes = query.state.data as Node[] | undefined
         if (nodes) {
@@ -99,28 +99,75 @@ export function useUpdateNode() {
         }
       }
 
-      if (mindmapId && previousNodes) {
+      // 2. mindmap 쿼리에서도 찾기
+      let previousMindmap: any = null
+      if (!mindmapId) {
+        const mindmapQueries = queryCache.findAll({ queryKey: ['mindmaps'] })
+        for (const query of mindmapQueries) {
+          const mindmap = query.state.data as any
+          if (mindmap?.nodes) {
+            const targetNode = mindmap.nodes.find((n: any) => n.id === id)
+            if (targetNode) {
+              mindmapId = mindmap.id
+              previousMindmap = mindmap
+              break
+            }
+          }
+        }
+      } else {
+        // mindmap 쿼리도 업데이트하기 위해 가져오기
+        const mindmapQuery = queryClient.getQueryData(['mindmaps', mindmapId])
+        if (mindmapQuery) {
+          previousMindmap = mindmapQuery
+        }
+      }
+
+      if (mindmapId) {
+        // Cancel queries to prevent race conditions
         await queryClient.cancelQueries({ queryKey: ['nodes', mindmapId] })
+        await queryClient.cancelQueries({ queryKey: ['mindmaps', mindmapId] })
 
-        // Optimistic update
-        const updatedNodes = previousNodes.map(node =>
-          node.id === id
-            ? { ...node, ...updateData, updated_at: new Date().toISOString() }
-            : node
-        )
+        // Optimistic update for nodes query
+        if (previousNodes) {
+          const updatedNodes = previousNodes.map(node =>
+            node.id === id
+              ? { ...node, ...updateData, updated_at: new Date().toISOString() }
+              : node
+          )
+          queryClient.setQueryData(['nodes', mindmapId], updatedNodes)
+        }
 
-        queryClient.setQueryData(['nodes', mindmapId], updatedNodes)
+        // Optimistic update for mindmap query
+        if (previousMindmap && previousMindmap.nodes) {
+          const updatedMindmap = {
+            ...previousMindmap,
+            nodes: previousMindmap.nodes.map((node: any) =>
+              node.id === id
+                ? { ...node, ...updateData, updated_at: new Date().toISOString() }
+                : node
+            )
+          }
+          queryClient.setQueryData(['mindmaps', mindmapId], updatedMindmap)
+        }
 
-        return { mindmapId, previousNodes }
+        return { mindmapId, previousNodes, previousMindmap }
       }
 
       return {}
     },
-    onError: (err, { id }, context) => {
+    onError: (err, _variables, context) => {
       // 에러 발생시 롤백
-      if (context?.mindmapId && context?.previousNodes) {
-        queryClient.setQueryData(['nodes', context.mindmapId], context.previousNodes)
+      if (context?.mindmapId) {
+        if (context.previousNodes) {
+          queryClient.setQueryData(['nodes', context.mindmapId], context.previousNodes)
+        }
+        if (context.previousMindmap) {
+          queryClient.setQueryData(['mindmaps', context.mindmapId], context.previousMindmap)
+        }
       }
+
+      // 에러 토스트 표시 (여기서는 console.error로 대체)
+      console.error('노드 업데이트 실패:', err)
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['nodes', data.mindmap_id] })
